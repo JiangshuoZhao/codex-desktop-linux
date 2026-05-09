@@ -8,6 +8,9 @@ const {
   recordPatch,
 } = require("../lib/patch-report.js");
 const {
+  loadLinuxFeatureMainBundlePatches,
+} = require("../lib/linux-features.js");
+const {
   applyLinuxAppUpdaterMenuPatch,
   patchLinuxAppUpdaterBridge,
 } = require("../lib/linux-update-bridge-patch.js");
@@ -288,8 +291,12 @@ function recordAssetPatch(report, name, patchResult, warnings) {
 function applyMainBundlePatches(source, context, report) {
   let patched = source;
   const warnings = [];
+  const patches = [
+    ...MAIN_BUNDLE_PATCHES,
+    ...loadLinuxFeatureMainBundlePatches(),
+  ];
 
-  for (const patch of MAIN_BUNDLE_PATCHES) {
+  for (const patch of patches) {
     if (patch.enabled != null && !patch.enabled(context)) {
       continue;
     }
@@ -423,6 +430,7 @@ function patchExtractedApp(extractedDir, options = {}) {
 function allPatchPolicies() {
   return [
     ...MAIN_BUNDLE_PATCHES.map(({ name, ciPolicy }) => ({ name, ciPolicy })),
+    ...loadLinuxFeatureMainBundlePatches().map(({ name, ciPolicy }) => ({ name, ciPolicy })),
     ...WEBVIEW_ASSET_PATCHES.map(({ name, ciPolicy }) => ({ name, ciPolicy })),
     ...COMPUTER_USE_UI_ASSET_PATCHES.map(({ name, ciPolicy }) => ({ name, ciPolicy })),
     ...CUSTOM_PATCH_POLICIES,

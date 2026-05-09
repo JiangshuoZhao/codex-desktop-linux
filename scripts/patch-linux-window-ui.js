@@ -6,6 +6,12 @@ const {
   writePatchReport,
 } = require("./lib/patch-report.js");
 const {
+  enabledLinuxFeatureIds,
+  enabledLinuxFeatureStageHooks,
+  loadEnabledLinuxFeatures,
+  loadLinuxFeatureMainBundlePatches,
+} = require("./lib/linux-features.js");
+const {
   applyLinuxAppUpdaterBridgePatch,
   applyLinuxAppUpdaterMenuPatch,
   patchLinuxAppUpdaterBridge,
@@ -141,7 +147,11 @@ module.exports = {
   applyLinuxWillQuitDrainTimeoutPatch,
   applyLinuxWindowOptionsPatch,
   createPatchReport,
+  enabledLinuxFeatureIds,
+  enabledLinuxFeatureStageHooks,
   isComputerUseUiEnabled,
+  loadEnabledLinuxFeatures,
+  loadLinuxFeatureMainBundlePatches,
   patchCommentPreloadBundle,
   patchExtractedApp,
   patchKeybindsSettingsAssets,

@@ -420,6 +420,10 @@ Native-package-only launcher behavior (desktop-entry hints, `codex-update-manage
 
 The current evaluation for a future Rust replacement of the local webview server lives in `docs/webview-server-evaluation.md`.
 
+## Linux features
+
+Optional Linux-only additions live in `linux-features/`. They are for integrations that are useful for some users but should not become mandatory core patches, such as editor openers, extra staged resources, or experimental Linux behavior. Copy `linux-features/features.example.json` to the git-ignored `linux-features/features.json` before running `./install.sh` or building packages; enabled features are applied during the install/build pipeline, so changing this file later requires regenerating the app. See [`linux-features/README.md`](linux-features/README.md) for the feature layout and entrypoint contract.
+
 ## Validation
 
 After changing installer, packaging, or updater logic:
@@ -430,6 +434,7 @@ node --check scripts/patch-linux-window-ui.js
 for file in scripts/patches/*.js; do node --check "$file"; done
 node --check scripts/ci/validate-patch-report.js
 node --test scripts/patch-linux-window-ui.test.js
+node --test linux-features/*/test.js
 bash tests/scripts_smoke.sh
 cargo check -p codex-update-manager
 cargo test -p codex-update-manager
