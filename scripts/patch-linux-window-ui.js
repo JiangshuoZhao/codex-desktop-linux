@@ -65,6 +65,7 @@ const {
 const {
   applyBrowserUseNodeReplApprovalPatch,
   applyLinuxAboutDialogPatch,
+  applyLinuxBrowserUseRouteLivenessPatch,
   applyLinuxBuildInfoTrayPatch,
   applyLinuxChromeExtensionStatusPatch,
   applyLinuxExplicitIpcQuitPatch,
@@ -182,6 +183,7 @@ module.exports = {
   applyLinuxBrowserUseAvailabilityPatch,
   applyLinuxBrowserUseExternalAvailabilityPatch,
   applyLinuxBrowserUseNonLocalNavigationPatch,
+  applyLinuxBrowserUseRouteLivenessPatch,
   applyLinuxBuildInfoTrayPatch,
   applyLinuxChromeExtensionStatusPatch,
   applyLinuxChromeNativeHostRuntimePatch,

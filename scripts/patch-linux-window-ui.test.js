@@ -22,6 +22,7 @@ const {
   applyLinuxAvatarOverlayMousePassthroughPatch,
   applyBrowserUseNodeReplApprovalPatch,
   applyLinuxBrowserUseIabVisibleOnCreatePatch,
+  applyLinuxBrowserUseRouteLivenessPatch,
   applyLinuxChromeExtensionStatusPatch,
   applyLinuxChromeNativeHostRuntimePatch,
   applyLinuxChromePluginAutoInstallPatch,
@@ -634,6 +635,7 @@ test("default core patch descriptors are grouped and unique", () => {
     "linux-chrome-plugin-auto-install",
     "linux-chrome-native-host-runtime",
     "browser-use-node-repl-approval",
+    "linux-browser-use-route-liveness",
     "linux-chrome-extension-status",
     "linux-remote-control-config-preservation",
     "linux-app-updater-menu",
@@ -3745,6 +3747,58 @@ test("patches later Browser Use navigation dispatches when an earlier one is alr
     2,
   );
   assert.doesNotMatch(patched, /browser-use-non-local-sites-allowed-changed`,\{allowed:p\}/);
+});
+
+test("falls back to the single live Linux Browser Use route window", () => {
+  const source =
+    "var kK=t.Ur(`browser-sidebar-manager`);" +
+    "function AK({ensureWindowState:e,windowId:t,windows:n}){let i=n.get(t)??null;if(i==null){let n=r.BrowserWindow.fromId(t);n!=null&&!n.isDestroyed()&&!n.webContents.isDestroyed()&&(i=e(n,n.webContents))}return i==null||i.window.isDestroyed()||i.owner.isDestroyed()?(kK().warning(`IAB_LIFECYCLE route window is not live`,{safe:{hasWindowState:i!=null,ownerDestroyed:i?.owner.isDestroyed()??null,windowDestroyed:i?.window.isDestroyed()??null,windowId:t},sensitive:{}}),null):i}";
+
+  const patched = applyPatchTwice(applyLinuxBrowserUseRouteLivenessPatch, source);
+
+  assert.match(patched, /function codexLinuxResolveLiveBrowserUseRouteWindow/);
+  assert.match(patched, /i==null&&\(i=codexLinuxResolveLiveBrowserUseRouteWindow\(e,t,n,r\)\);return/);
+  assert.equal((patched.match(/codexLinuxResolveLiveBrowserUseRouteWindow/g) || []).length, 2);
+
+  const webContents = { isDestroyed: () => false };
+  const window = { id: 7, isDestroyed: () => false, webContents };
+  const context = {
+    process: { platform: "linux" },
+    r: { BrowserWindow: { fromId: () => null, getAllWindows: () => [window] } },
+    t: { Ur: () => () => ({ warning: () => assert.fail("fallback should avoid warning") }) },
+  };
+  const result = vm.runInNewContext(
+    `${patched};AK({ensureWindowState:(window,owner)=>({owner,threads:new Map,window}),windowId:42,windows:new Map})`,
+    context,
+  );
+
+  assert.equal(result.window.id, 7);
+  assert.equal(result.owner, webContents);
+});
+
+test("keeps Browser Use route liveness fallback inactive when ambiguous", () => {
+  const source =
+    "var kK=t.Ur(`browser-sidebar-manager`);" +
+    "function AK({ensureWindowState:e,windowId:t,windows:n}){let i=n.get(t)??null;if(i==null){let n=r.BrowserWindow.fromId(t);n!=null&&!n.isDestroyed()&&!n.webContents.isDestroyed()&&(i=e(n,n.webContents))}return i==null||i.window.isDestroyed()||i.owner.isDestroyed()?(kK().warning(`IAB_LIFECYCLE route window is not live`,{safe:{hasWindowState:i!=null,ownerDestroyed:i?.owner.isDestroyed()??null,windowDestroyed:i?.window.isDestroyed()??null,windowId:t},sensitive:{}}),null):i}";
+  const patched = applyLinuxBrowserUseRouteLivenessPatch(source);
+  const webContents = { isDestroyed: () => false };
+  const windows = [
+    { id: 7, isDestroyed: () => false, webContents },
+    { id: 8, isDestroyed: () => false, webContents },
+  ];
+  let warnings = 0;
+  const context = {
+    process: { platform: "linux" },
+    r: { BrowserWindow: { fromId: () => null, getAllWindows: () => windows } },
+    t: { Ur: () => () => ({ warning: () => { warnings += 1; } }) },
+  };
+  const result = vm.runInNewContext(
+    `${patched};AK({ensureWindowState:(window,owner)=>({owner,window}),windowId:42,windows:new Map})`,
+    context,
+  );
+
+  assert.equal(result, null);
+  assert.equal(warnings, 1);
 });
 
 test("shows object-helper Computer Use plugin UI on Linux", () => {
