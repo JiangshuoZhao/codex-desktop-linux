@@ -1083,7 +1083,7 @@ function detectLatestComposerRateLimitQuery(source) {
 function removeBroadFooterInlineControlsRateLimitPatch(source) {
   return source.replace(
     /let ([A-Za-z_$][\w$]*);return \1=\(0,([A-Za-z_$][\w$]*)\.jsxs\)\(`div`,\{ref:([A-Za-z_$][\w$]*),className:([A-Za-z_$][\w$]*),children:\[([A-Za-z_$][\w$]*),\(0,\2\.jsx\)\(codexLinuxRateLimitFooter,\{conversationId:null\}\)\]\}\),\1\}/g,
-    "let $1;return t[2]!==$5||t[3]!==$3||t[4]!==$4?($1=(0,$2.jsx)(`div`,{ref:$3,className:$4,children:$5}),t[2]=$5,t[3]=$3,t[4]=$4,t[5]=$1):$1=t[5],$1}",
+    "let $1;return $1=(0,$2.jsx)(`div`,{ref:$3,className:$4,children:$5}),$1}",
   );
 }
 

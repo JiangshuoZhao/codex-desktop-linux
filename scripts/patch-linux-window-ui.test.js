@@ -4992,6 +4992,29 @@ test("persistent rate limit footer detects latest rate-limit query symbols", () 
   );
 });
 
+test("persistent rate limit footer removes broad inline controls patch without assuming cache variable", () => {
+  const source = [
+    "var $=qt();var Q=Hr();",
+    "function ef(e){let t=(0,$.c)(23),{selectedModel:n}=e,{data:r}=wr(),{data:i}=Dr(Qk),a=ru(),o;if(t[0]!==i){o=go({rateLimitStatus:i,isWorkspaceAccount:!0}),t[0]=i,t[1]=o}else o=t[1];return o}",
+    "var Pp=Object.assign(Fp,{FooterInlineControls:Wp});",
+    "function Wp(e){let r=(0,$.c)(6),{children:n,gap:i,ref:a}=e,o=(i===void 0?`compact`:i)===`compact`?`gap-1`:`gap-[5px]`,s;r[0]===o?s=r[1]:(s=J(`flex min-w-0 items-center`,o),r[0]=o,r[1]=s);let c;return c=(0,Q.jsxs)(`div`,{ref:a,className:s,children:[n,(0,Q.jsx)(codexLinuxRateLimitFooter,{conversationId:null})]}),c}",
+    "function Mm(e){let t=(0,$.c)(12),{addContextButton:n,conversationId:s}=e,Ke=null,qe;t[0]!==n||t[1]!==Ke?(qe=(0,Q.jsxs)(Pp.FooterInlineControls,{gap:`normal`,children:[n,Ke]}),t[0]=n,t[1]=Ke,t[2]=qe):qe=t[2];return qe}",
+  ].join("");
+
+  const patched = applyPatchTwice(applyPersistentRateLimitFooterPatch, source);
+
+  assert.match(
+    patched,
+    /let c;return c=\(0,Q\.jsx\)\(`div`,\{ref:a,className:s,children:n\}\),c\}/,
+  );
+  assert.doesNotMatch(patched, /return t\[2\]/);
+  assert.doesNotMatch(patched, /conversationId:null/);
+  assert.match(
+    patched,
+    /FooterInlineControls,\{gap:`normal`,children:\[n,Ke,\(0,Q\.jsx\)\(codexLinuxRateLimitFooter,\{conversationId:s\}\)\]\}/,
+  );
+});
+
 test("persistent rate limit footer migrates latest composer footer away from conversation guard", () => {
   const oldHelper =
     "function codexLinuxRateLimitFooter({conversationId:e}){try{let t=(0,$.c)(8),{activeMode:n}=or(e),r=n?.settings.model??null,{data:i}=St(ue),a=ma(i),o=la(i),s=da(a,{activeLimitName:o,selectedModel:r}).filter(og).slice(0,2);if(s.length===0)return null;let c=ht(),l;if(t[0]!==s||t[1]!==c){l=s.map(e=>`${Xh(e.bucket.windowDurationMins??null,c)} ${c.formatNumber(Sa(e.bucket.usedPercent??0),{maximumFractionDigits:0})}%`).join(` / `),t[0]=s,t[1]=c,t[2]=l}else l=t[2];let u;return t[3]!==l?(u=(0,Q.jsx)(`span`,{className:`composer-footer__label--sm inline-flex shrink-0 items-center gap-1.5 rounded-full border border-token-border-light bg-token-main-surface-primary/80 px-2 py-1 text-xs text-token-text-secondary shadow-sm dark:border-white/10`,children:l}),t[3]=l,t[4]=u):u=t[4],u}catch(e){return null}}";
