@@ -83,4 +83,13 @@ repository beyond faithfully reporting it.
 ### CLI preflight
 
 Launcher CLI preflight is best-effort, recently hardened, and not part of the
-rendering path. No performance changes were made there.
+rendering path. One launch-path cost hid there, though: the CLI version log
+line reads `codex_cli_version` through command substitution, and the probe's
+watchdog subshell inherited that pipe. Its `sleep 1` child survived the
+watchdog kill and held the pipe open, so every cold launch stalled for the
+full watchdog second even when the CLI answered in ~50 ms. The watchdog now
+runs with stdout/stderr detached (`>/dev/null 2>&1`), which cut the
+`launch_state_refreshed_under_lock` → `electron_launch` gap from ~1010 ms to
+~74 ms. When adding bounded probes, keep watchdog subshells detached from any
+caller pipe — an orphaned `sleep` holding an inherited fd blocks command
+substitution until it exits.
