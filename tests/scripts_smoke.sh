@@ -4536,6 +4536,18 @@ PY
     version_output="$(env -i PATH="/usr/bin:/bin" HOME="$fake_home" "$launcher_probe" version "$fallback_version_cli")"
     [ "$version_output" = "0.151.0" ] || fail "CLI version probe must fall back to version output, got $version_output"
 
+    # The version probe result is read through command substitution on the
+    # launch path. The watchdog subshell (and its sleep child) must not
+    # inherit that pipe, or a fast CLI still blocks the caller for the full
+    # watchdog second waiting for pipe EOF.
+    local fast_probe_start_ns fast_probe_end_ns fast_probe_elapsed_ms
+    fast_probe_start_ns="$(date +%s%N)"
+    version_output="$(env -i PATH="/usr/bin:/bin" HOME="$fake_home" "$launcher_probe" version "$dash_version_cli")"
+    fast_probe_end_ns="$(date +%s%N)"
+    fast_probe_elapsed_ms=$(( (10#$fast_probe_end_ns - 10#$fast_probe_start_ns) / 1000000 ))
+    [ "$version_output" = "0.150.0" ] || fail "fast CLI version probe must still parse --version output, got $version_output"
+    [ "$fast_probe_elapsed_ms" -lt 700 ] || fail "CLI version probe must not hold the command-substitution pipe until the watchdog sleep expires, took ${fast_probe_elapsed_ms}ms"
+
     local unknown_cli="$workspace/unknown-version-codex"
     printf '#!/usr/bin/env bash\nprintf "codex-cli dev build\\n"\n' > "$unknown_cli"
     chmod +x "$unknown_cli"

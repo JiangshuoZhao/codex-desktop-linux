@@ -1459,6 +1459,10 @@ codex_cli_version_probe() {
       exec "$@" >"$output_file" 2>/dev/null
     ) &
     probe_pid="$!"
+    # The watchdog (and its sleep child, which outlives the kill below) must
+    # not inherit the caller's stdout: codex_cli_version runs under command
+    # substitution, and an inherited pipe fd would block the caller for the
+    # full watchdog second even when the probe answers immediately.
     ( trap - EXIT
       { exec 9>&-; } 2>/dev/null || true
       sleep 1
@@ -1470,7 +1474,7 @@ codex_cli_version_probe() {
               kill -9 "$probe_pid" 2>/dev/null || true
           fi
       fi
-    ) &
+    ) >/dev/null 2>&1 &
     watchdog_pid="$!"
 
     if wait "$probe_pid"; then

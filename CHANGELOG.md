@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Cold launches no longer stall for a full second between acquiring the
+  launcher lock and spawning Electron. The CLI version log line reads the
+  probe result through command substitution, and the probe's watchdog
+  subshell inherited that pipe: its `sleep 1` child survived the watchdog
+  kill and held the pipe open until the sleep expired, so even a CLI that
+  answers `--version` in ~50 ms blocked the launch path for ~1 s. The
+  watchdog now runs detached from the caller's stdout/stderr, cutting that
+  launch phase from ~1010 ms to ~74 ms and making the window (and GNOME's
+  startup feedback) appear about a second sooner on every cold start.
+
 ### Changed
 
 - The launcher now passes `--disable-dev-shm-usage` to Electron only when
