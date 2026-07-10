@@ -87,6 +87,7 @@ function currentAppshotSettingsRuntimeFixture() {
     "let o={configuredHotkey:`DoubleOption`,linuxWayland:!1};",
     "function render(){let f=o?.configuredHotkey??null;return{selected:X.find(e=>e.hotkey===f)??null,labels:X.map(e=>e.label)}}",
     "function unrelated(){return AX.find(e=>e)+AX.map(e=>e)}",
+    "function propertyAccess(){return obj.X.find(e=>e)+obj.X.map(e=>e)}",
     "globalThis.result=render();",
     "\n//# sourceMappingURL=fixture.js.map",
   ].join("");
@@ -246,6 +247,12 @@ test("routes AppShots capture through the self-contained Linux feature", () => {
   assert.match(patched, /\[linux-appshots\]/);
   assert.match(patched, /codexLinuxAppshotCropRects/);
   assert.match(patched, /codexLinuxAppshotFirstValidCrop/);
+  assert.match(patched, /mkdtempSync\(i\.join\(r\.tmpdir\(\),`codex-appshot-`\)\)/);
+  assert.match(patched, /chmodSync\(u,448\)/);
+  assert.match(patched, /i\.join\(u,`source\.png`\)/);
+  assert.match(patched, /i\.join\(u,`crop\.png`\)/);
+  assert.match(patched, /rmSync\(u,\{recursive:true,force:true\}\)/);
+  assert.doesNotMatch(patched, /i\.join\(r\.tmpdir\(\),`codex-appshot-\$\{/);
   assert.doesNotMatch(patched, /\[`appshot`/);
   assert.doesNotMatch(patched, /bare-modifier-monitor/);
   assert.match(
@@ -327,6 +334,31 @@ test("AppShots hotkey patch fails closed when one current class shape drifts", (
   ]);
 });
 
+test("AppShots hotkey patch rejects a partially patched setter", () => {
+  const fullyPatched = applyLinuxAppshotHotkeyPatch(currentAppshotHotkeyMainBundleFixture());
+  const partial = fullyPatched.replace(
+    "if(!this.enabled||process.platform!==`darwin`&&process.platform!==`linux`)return{success:!1,error:`Not supported.`,state:this.getState()}",
+    "if(!this.enabled||process.platform!==`darwin`)return{success:!1,error:`Not supported.`,state:this.getState()}",
+  );
+
+  assert.deepEqual(captureWarnings(() => {
+    assert.equal(applyLinuxAppshotHotkeyPatch(partial), partial);
+  }), [
+    "WARN: Could not find current AppShots hotkey class - skipping Linux AppShots hotkey patch",
+  ]);
+});
+
+test("AppShots hotkey patch rejects duplicate current class contracts", () => {
+  const source = currentAppshotHotkeyMainBundleFixture();
+  const duplicate = `${source}${source}`;
+
+  assert.deepEqual(captureWarnings(() => {
+    assert.equal(applyLinuxAppshotHotkeyPatch(duplicate), duplicate);
+  }), [
+    "WARN: Could not find current AppShots hotkey class - skipping Linux AppShots hotkey patch",
+  ]);
+});
+
 test("shows Linux AppShots accelerator choices in current settings chunk", () => {
   const patched = applyPatchTwice(
     applyLinuxAppshotSettingsHotkeyPatch,
@@ -364,6 +396,7 @@ test("current AppShots settings helper is declared in strict module scope", () =
   );
   assert.doesNotMatch(patched, /,codexLinuxAppshotHotkeyOptions=/);
   assert.match(patched, /AX\.find\(e=>e\)\+AX\.map\(e=>e\)/);
+  assert.match(patched, /obj\.X\.find\(e=>e\)\+obj\.X\.map\(e=>e\)/);
   assert.ok(
     patched.indexOf("function codexLinuxAppshotHotkeyOptions") <
       patched.indexOf("//# sourceMappingURL=fixture.js.map"),

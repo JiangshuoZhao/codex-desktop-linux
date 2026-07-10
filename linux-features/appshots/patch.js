@@ -81,7 +81,7 @@ function applyLinuxAppshotHotkeyPatch(currentSource) {
   const alreadyPatched = [
     /this\.configuredHotkey=[A-Za-z_$][\w$]*===void 0\?\(process\.platform===`linux`\?null:[A-Za-z_$][\w$]*\):[A-Za-z_$][\w$]*/,
     /supported:this\.enabled&&\(process\.platform===`darwin`\|\|process\.platform===`linux`\),configuredHotkey:this\.configuredHotkey,isActive:this\.registration!=null,linuxWayland:codexLinuxAppshotIsWayland\(\)/,
-    /!this\.enabled\|\|process\.platform!==`darwin`&&process\.platform!==`linux`/,
+    /if\(!this\.enabled\|\|process\.platform!==`darwin`&&process\.platform!==`linux`\)return\{success:!1,error:`Not supported\.`,state:this\.getState\(\)\}/,
     /!this\.enabled\|\|process\.platform!==`darwin`&&process\.platform!==`linux`\|\|this\.configuredHotkey==null/,
     /return [A-Za-z_$][\w$]*\.length===1\?\([A-Za-z_$][\w$]*===`darwin`\|\|[A-Za-z_$][\w$]*===`linux`\)\?/,
     /return \([A-Za-z_$][\w$]*===`darwin`\|\|[A-Za-z_$][\w$]*===`linux`&&!codexLinuxAppshotIsWayland\(\)\)&&/,
@@ -95,12 +95,13 @@ function applyLinuxAppshotHotkeyPatch(currentSource) {
   let patchedSource = currentSource;
   const counts = [];
   function replaceRequired(pattern, replacement) {
-    let count = 0;
-    patchedSource = patchedSource.replace(pattern, (...args) => {
-      count += 1;
-      return typeof replacement === "function" ? replacement(...args) : replacement;
-    });
+    const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+    const count = [...patchedSource.matchAll(new RegExp(pattern.source, flags))].length;
     counts.push(count);
+    if (count !== 1) {
+      return;
+    }
+    patchedSource = patchedSource.replace(pattern, replacement);
   }
 
   replaceRequired(
@@ -272,17 +273,18 @@ async function codexLinuxAppshotScreenshot(e,t){
 let n=codexLinuxAppshotRequire(\`node:fs\`),r=codexLinuxAppshotRequire(\`node:os\`),i=codexLinuxAppshotRequire(\`node:path\`),a=codexLinuxAppshotRequire(\`node:child_process\`),o=codexLinuxAppshotRequire(\`electron\`).nativeImage,s=codexLinuxAppshotCropRects(e,t);
 if(s.length===0)return codexLinuxAppshotWarn(\`screenshot-crop-missing\`,{hasBounds:e?.bounds!=null}),null;
 for(let c of codexLinuxAppshotScreenshotCommands(e))for(let l of c.programs){
-let u=i.join(r.tmpdir(),\`codex-appshot-\${process.pid}-\${Date.now()}-\${Math.random().toString(16).slice(2)}.png\`),d=i.join(r.tmpdir(),\`codex-appshot-crop-\${process.pid}-\${Date.now()}-\${Math.random().toString(16).slice(2)}.png\`),f=c.output===\`append\`?[...c.args,u]:[...c.args,...c.output,u];
+let u=null;
 try{
-await codexLinuxAppshotExecFile(a,l,f,{timeout:15000,maxBuffer:8388608});
-if(!n.existsSync(u)){codexLinuxAppshotWarn(\`screenshot-output-missing\`,{source:c.source,program:l});continue}
-let e=n.statSync(u);if(e.size<=0){codexLinuxAppshotWarn(\`screenshot-output-empty\`,{source:c.source,program:l});continue}
-let t=await codexLinuxAppshotCropWithImageMagick({childProcess:a,fs:n,sourcePath:u,tmpPath:d,cropRects:s});
+u=n.mkdtempSync(i.join(r.tmpdir(),\`codex-appshot-\`)),n.chmodSync(u,448);let d=i.join(u,\`source.png\`),f=i.join(u,\`crop.png\`),p=c.output===\`append\`?[...c.args,d]:[...c.args,...c.output,d];
+await codexLinuxAppshotExecFile(a,l,p,{timeout:15000,maxBuffer:8388608});
+if(!n.existsSync(d)){codexLinuxAppshotWarn(\`screenshot-output-missing\`,{source:c.source,program:l});continue}
+let e=n.statSync(d);if(e.size<=0){codexLinuxAppshotWarn(\`screenshot-output-empty\`,{source:c.source,program:l});continue}
+let t=await codexLinuxAppshotCropWithImageMagick({childProcess:a,fs:n,sourcePath:d,tmpPath:f,cropRects:s});
 if(t!=null)return{dataURL:t.dataURL,width:t.width,height:t.height,source:\`\${c.source}:imagemagick-window-crop\`};
-let r=codexLinuxAppshotCropNativeImage(o,u,s);
+let r=codexLinuxAppshotCropNativeImage(o,d,s);
 if(r!=null)return{dataURL:r.image.toDataURL(),width:r.width,height:r.height,source:\`\${c.source}:feature-window-crop\`}
 }catch(e){codexLinuxAppshotWarn(\`screenshot-command-failed\`,{source:c.source,program:l,message:e instanceof Error?e.message:String(e),stderr:typeof e?.codexStderr===\`string\`?e.codexStderr.slice(0,200):\`\`})}
-finally{try{n.rmSync(u,{force:true})}catch{}try{n.rmSync(d,{force:true})}catch{}}
+finally{if(u!=null)try{n.rmSync(u,{recursive:true,force:true})}catch{}}
 }
 return codexLinuxAppshotWarn(\`screenshot-all-commands-failed\`,{commandCount:codexLinuxAppshotScreenshotCommands(e).length}),null
 }
@@ -315,7 +317,7 @@ function replaceIdentifierCall(source, identifier, method, replacement) {
       break;
     }
     const previous = matchIndex > 0 ? source[matchIndex - 1] : "";
-    if (/[A-Za-z0-9_$]/.test(previous)) {
+    if (previous === "." || /[A-Za-z0-9_$]/.test(previous)) {
       const nextCursor = matchIndex + needle.length;
       output += source.slice(cursor, nextCursor);
       cursor = nextCursor;
