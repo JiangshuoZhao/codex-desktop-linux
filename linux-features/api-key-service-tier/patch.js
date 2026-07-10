@@ -138,13 +138,29 @@ function applyApiKeyServiceTierPatch(source) {
 }
 
 function applyCurrentGateAndModelPatch(source) {
-  if (!PATCHED_SERVICE_TIER_GATE.test(source) && !hasApiKeyServiceTierGateShape(source)) {
+  const gateAlreadyPatched = PATCHED_SERVICE_TIER_GATE.test(source);
+  const modelAlreadyPatched = source.includes(MODEL_MARKER);
+  const gateCandidate = gateAlreadyPatched ? source : applyApiKeyServiceTierGatePatch(source);
+  const modelCandidate = modelAlreadyPatched ? source : applyApiKeyModelMarkerPatch(source);
+  const gateReady = gateAlreadyPatched || gateCandidate !== source;
+  const modelReady = modelAlreadyPatched || modelCandidate !== source;
+
+  if (!gateReady && !hasApiKeyServiceTierGateShape(source)) {
     warn("Could not identify current service tier auth gate", "API key service tier gate patch");
   }
-  if (!source.includes(MODEL_MARKER) && !hasApiKeyModelListMappingShape(source)) {
+  if (!modelReady && !hasApiKeyModelListMappingShape(source)) {
     warn("Could not identify current model list mapping", "API key model service tier marker patch");
   }
-  return applyApiKeyModelMarkerPatch(applyApiKeyServiceTierGatePatch(source));
+  if (!gateReady || !modelReady) {
+    return source;
+  }
+  if (gateAlreadyPatched) {
+    return modelCandidate;
+  }
+  if (modelAlreadyPatched) {
+    return gateCandidate;
+  }
+  return applyApiKeyModelMarkerPatch(gateCandidate);
 }
 
 function applyCurrentFallbackFastTierPatch(source) {
