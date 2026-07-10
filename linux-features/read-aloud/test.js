@@ -915,7 +915,7 @@ test("assistant runtime descriptor targets current shared assistant bundles", ()
   assert.ok(descriptor);
   assert.equal(
     descriptor.pattern.test(
-      "app-initial~app-main~onboarding-page~hotkey-window-thread-page~editor-diff-page~thread-app-~current.js",
+      "app-initial~app-main~onboarding-page-zcfEkMl-.js",
     ),
     true,
   );
@@ -923,7 +923,7 @@ test("assistant runtime descriptor targets current shared assistant bundles", ()
     "index-current.js",
     "local-conversation-thread-current.js",
     "local-conversation-turn-current.js",
-    "app-initial~app-main~onboarding-page-current.js",
+    "app-initial~app-main~onboarding-page~hotkey-window-thread-page~editor-diff-page~thread-app-~current.js",
   ]) {
     assert.equal(descriptor.pattern.test(legacyName), false, legacyName);
   }
