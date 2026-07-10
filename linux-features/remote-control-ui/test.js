@@ -238,7 +238,7 @@ test("remote-control UI feature patches matching webview assets and records patc
             assetsDir,
             "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~iufn7mg3-Cdmi2Vi6.js",
           ),
-          "function p(){let e=t(`1042620455`),n=r(`remote_control_connections_state`);return!!e&&n?.available===!0}",
+          "function a({remoteControlConnectionsState:e,slingshotEnabled:t}){return t&&(e?.available??!0)&&e?.accessRequired!==!0}",
         );
         fs.writeFileSync(
           path.join(assetsDir, "settings-route-state-BwIfDYxh.js"),
