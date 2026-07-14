@@ -179,10 +179,17 @@ jobs:
           set -euo pipefail
           raw="${{ github.event.release.tag_name }}"
           if [ -z "$raw" ]; then
-            raw="ci-$(date -u +%Y.%m.%d.%H%M%S)"
+            # Manual (workflow_dispatch) run: no release tag. A dpkg version
+            # MUST start with a digit, so prefix the timestamp with 0.0.0+.
+            raw="0.0.0+ci.$(date -u +%Y%m%d.%H%M%S)"
           fi
           # Strip a leading v and any characters not valid in a dpkg version.
           version="$(printf '%s' "$raw" | sed -E 's/^v//; s/[^0-9A-Za-z.+~-]//g')"
+          # Final safety net: dpkg rejects a version not beginning with a digit
+          # (e.g. a tag like "pre-1.0" becomes "pre1.0"). Prefix it.
+          if ! printf '%s' "$version" | grep -q '^[0-9]'; then
+            version="0.0.0+$version"
+          fi
           test -n "$version"
           echo "package_version=$version" >> "$GITHUB_OUTPUT"
 
