@@ -78,10 +78,13 @@ jobs:
           add-apt-repository -y ppa:ubuntu-toolchain-r/test
           apt-get update -qq
           apt-get install -y gcc-10 g++-10
+          # Make GCC 10 the default. `cc` already points at `gcc` via its own
+          # alternative, and `c++` is a slave of `g++`, so a single install with
+          # `g++` as a slave covers gcc/g++/cc/c++ without slave conflicts.
+          # (Creating a separate `cc` master with `c++` as its slave fails because
+          # `c++` is already owned by the `g++` alternative.)
           update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 \
             --slave /usr/bin/g++ g++ /usr/bin/g++-10
-          update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-10 100 \
-            --slave /usr/bin/c++ c++ /usr/bin/g++-10
           # Ensure node-gyp uses GCC 10 even if an alternative is later re-pointed.
           echo 'CC=gcc-10' >> "$GITHUB_ENV"
           echo 'CXX=g++-10' >> "$GITHUB_ENV"

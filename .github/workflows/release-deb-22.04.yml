@@ -60,7 +60,7 @@ jobs:
           echo 'tzdata tzdata/Areas select Etc' | debconf-set-selections
           echo 'tzdata tzdata/Zones/Etc select UTC' | debconf-set-selections
 
-          apt-get install -y sudo ca-certificates tzdata
+          apt-get install -y sudo ca-certificates tzdata gcc g++
 
           # sudo resets the environment by default (env_reset), which drops the
           # job-level DEBIAN_FRONTEND=noninteractive. install-deps.sh runs apt
