@@ -83,7 +83,7 @@ jobs:
           # `g++` as a slave covers gcc/g++/cc/c++ without slave conflicts.
           # (Creating a separate `cc` master with `c++` as its slave fails because
           # `c++` is already owned by the `g++` alternative.)
-          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 \
+          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 200 \
             --slave /usr/bin/g++ g++ /usr/bin/g++-10
           # Ensure node-gyp uses GCC 10 even if an alternative is later re-pointed.
           echo 'CC=gcc-10' >> "$GITHUB_ENV"
@@ -201,6 +201,7 @@ jobs:
           grep -q './opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh' /tmp/deb-contents.txt
 
       - name: Upload .deb to the GitHub release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.deb.outputs.path }}

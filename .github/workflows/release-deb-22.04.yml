@@ -190,6 +190,7 @@ jobs:
           grep -q './opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh' /tmp/deb-contents.txt
 
       - name: Upload .deb to the GitHub release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.deb.outputs.path }}
