@@ -25,6 +25,13 @@ jobs:
     name: Build and publish Debian package
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    defaults:
+      run:
+        # The ubuntu:20.04 container defaults its shell to /bin/sh (dash),
+        # which does not support `set -o pipefail`. Force bash so all the
+        # `set -euo pipefail` steps below work inside the container.
+        shell: bash
+
     container:
       # GitHub retired the ubuntu-20.04 hosted runner label, so run inside a
       # 20.04 container on ubuntu-latest. Building against 20.04's older glibc
