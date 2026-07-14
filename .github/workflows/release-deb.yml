@@ -1,0 +1,170 @@
+name: Release Debian Package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Release packaging is not safe to run concurrently with itself; a release
+# should only be published once and the DMG cache write is not cancel-safe.
+concurrency:
+  group: release-deb-${{ github.event.release.id || github.run_id }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  UPSTREAM_DMG_URL: https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg
+  UPSTREAM_DMG_PATH: /tmp/codex-upstream-ci/Codex.dmg
+  DMG_CACHE_SCHEMA_VERSION: v1
+
+jobs:
+  build-deb:
+    name: Build and publish Debian package
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    container:
+      # GitHub retired the ubuntu-20.04 hosted runner label, so run inside a
+      # 20.04 container on ubuntu-latest. Building against 20.04's older glibc
+      # keeps the packaged updater binary and rebuilt native modules compatible
+      # with 20.04+ desktop Linux systems.
+      image: docker.io/library/ubuntu:20.04
+      options: --user root
+    env:
+      DEBIAN_FRONTEND: noninteractive
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap sudo
+        run: |
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -y sudo ca-certificates
+
+      - name: Install build dependencies
+        run: bash scripts/install-deps.sh
+
+      - name: Expose local tooling on PATH
+        run: |
+          printf '%s\n' "$HOME/.local/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Capture upstream DMG metadata
+        id: upstream-metadata
+        run: |
+          set -euo pipefail
+
+          headers_file="$(mktemp)"
+          trap 'rm -f "$headers_file"' EXIT
+
+          curl -fsSLI "$UPSTREAM_DMG_URL" > "$headers_file"
+
+          # Match header names case-insensitively without gawk's IGNORECASE,
+          # which is a no-op under mawk (the default awk on ubuntu runners).
+          last_modified="$(awk 'tolower($0) ~ /^last-modified:/ {sub(/\r$/,""); sub(/^[^:]+: /,""); print; exit}' "$headers_file")"
+          etag="$(awk 'tolower($0) ~ /^etag:/ {sub(/\r$/,""); sub(/^[^:]+: /,""); gsub(/"/,""); print; exit}' "$headers_file")"
+          content_length="$(awk 'tolower($0) ~ /^content-length:/ {sub(/\r$/,""); sub(/^[^:]+: /,""); print; exit}' "$headers_file")"
+
+          if [ -z "$last_modified" ]; then
+            last_modified="unknown"
+          fi
+          if [ -z "$etag" ]; then
+            etag="no-etag"
+          fi
+          if [ -z "$content_length" ]; then
+            content_length="unknown"
+          fi
+
+          cache_segment="$(printf '%s|%s|%s\n' "$last_modified" "$etag" "$content_length" | sha256sum | cut -d' ' -f1)"
+
+          {
+            echo "last_modified=$last_modified"
+            echo "etag=$etag"
+            echo "content_length=$content_length"
+            echo "cache_segment=$cache_segment"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached upstream DMG
+        id: dmg-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/codex-upstream-ci/Codex.dmg
+          key: upstream-dmg-${{ env.DMG_CACHE_SCHEMA_VERSION }}-${{ steps.upstream-metadata.outputs.cache_segment }}
+
+      - name: Download upstream DMG
+        if: steps.dmg-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$UPSTREAM_DMG_PATH")"
+          curl -fL --retry 3 -o "$UPSTREAM_DMG_PATH" "$UPSTREAM_DMG_URL"
+
+      - name: Build app from upstream DMG
+        env:
+          # Honor the shared upstream-DMG acceptance profile: if the current
+          # upstream DMG drifts and the transactional installer rejects it, the
+          # job fails here and no .deb is published.
+          CODEX_ACCEPTANCE_OVERRIDE: '0'
+          CODEX_ACCEPTANCE_SOURCE: github-actions
+        run: make build-app DMG=/tmp/codex-upstream-ci/Codex.dmg
+
+      - name: Build codex-update-manager
+        # Explicit, separately-failing step so a Rust/cargo build failure is
+        # attributed here instead of being buried inside the packaging step.
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+          make build-updater
+
+      - name: Resolve package version
+        id: version
+        run: |
+          set -euo pipefail
+          raw="${{ github.event.release.tag_name }}"
+          if [ -z "$raw" ]; then
+            raw="ci-$(date -u +%Y.%m.%d.%H%M%S)"
+          fi
+          # Strip a leading v and any characters not valid in a dpkg version.
+          version="$(printf '%s' "$raw" | sed -E 's/^v//; s/[^0-9A-Za-z.+~-]//g')"
+          test -n "$version"
+          echo "package_version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build Debian package
+        id: deb
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.package_version }}
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+          # `make deb` depends on `maybe-build-updater`; the updater was already
+          # built in the step above, so this is effectively the packaging step.
+          make deb
+
+          deb_file="$(find dist -maxdepth 1 -name 'codex-desktop_*.deb' -print -quit)"
+          test -n "$deb_file"
+          echo "path=$deb_file" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$deb_file")" >> "$GITHUB_OUTPUT"
+
+          dpkg-deb -I "$deb_file"
+          dpkg-deb -c "$deb_file" | tee /tmp/deb-contents.txt >/dev/null
+          grep -q './usr/bin/codex-update-manager' /tmp/deb-contents.txt
+          grep -q './usr/lib/systemd/user/codex-update-manager.service' /tmp/deb-contents.txt
+          grep -q './opt/codex-desktop/update-builder/install.sh' /tmp/deb-contents.txt
+          grep -q './opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh' /tmp/deb-contents.txt
+
+      - name: Upload .deb to the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.deb.outputs.path }}
+          fail_on_unmatched_files: true
+
+      - name: Write release summary
+        run: |
+          {
+            echo "## Release Debian Package"
+            echo ""
+            echo "- Built and published: \`${{ steps.deb.outputs.name }}\`"
+            echo "- Verified updater binary, user service, update-builder bundle, and packaged runtime helper."
+          } >> "$GITHUB_STEP_SUMMARY"
