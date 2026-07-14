@@ -74,9 +74,11 @@ jobs:
           #      standard-library header that is NOT present in libstdc++ 9/10
           #      (it first ships with libstdc++ 11). GCC 10 fixes #1 but still
           #      hits "fatal error: source_location: No such file or directory".
-          # Install GCC 12 from the toolchain PPA: it accepts -std=c++20 AND its
-          # libstdc++-12-dev provides <source_location> (and the rest of C++20
-          # stdlib). We deliberately KEEP the 20.04 container so the built
+          # Install GCC 11 from the toolchain PPA: it accepts -std=c++20 AND its
+          # libstdc++-11-dev provides <source_location>. GCC 11 is chosen
+          # deliberately to match the project's target/dev toolchain (which is
+          # pinned to GCC 11 and cannot be upgraded), keeping CI and local builds
+          # reproducible. We deliberately KEEP the 20.04 container so the built
           # binaries stay linked against glibc 2.31 and continue to support
           # Ubuntu 20.04+ users (the project's stated target). The C++ stdlib
           # runtime symbols better-sqlite3 needs are old (GLIBCXX <= 3.4.28) and
@@ -84,18 +86,18 @@ jobs:
           apt-get install -y software-properties-common
           add-apt-repository -y ppa:ubuntu-toolchain-r/test
           apt-get update -qq
-          apt-get install -y gcc-12 g++-12
-          # Make GCC 12 the default. `cc` already points at `gcc` via its own
+          apt-get install -y gcc-11 g++-11
+          # Make GCC 11 the default. `cc` already points at `gcc` via its own
           # alternative, and `c++` is a slave of `g++`, so a single install with
           # `g++` as a slave covers gcc/g++/cc/c++ without slave conflicts.
           # (Creating a separate `cc` master with `c++` as its slave fails because
           # `c++` is already owned by the `g++` alternative.)
-          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 200 \
-            --slave /usr/bin/g++ g++ /usr/bin/g++-12
-          # Ensure node-gyp uses GCC 12 even if an alternative is later re-pointed.
-          echo 'CC=gcc-12' >> "$GITHUB_ENV"
-          echo 'CXX=g++-12' >> "$GITHUB_ENV"
-          gcc-12 --version | head -1
+          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 200 \
+            --slave /usr/bin/g++ g++ /usr/bin/g++-11
+          # Ensure node-gyp uses GCC 11 even if an alternative is later re-pointed.
+          echo 'CC=gcc-11' >> "$GITHUB_ENV"
+          echo 'CXX=g++-11' >> "$GITHUB_ENV"
+          gcc-11 --version | head -1
 
       - name: Install build dependencies
         run: bash scripts/install-deps.sh
