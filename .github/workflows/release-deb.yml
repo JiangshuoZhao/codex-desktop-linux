@@ -173,36 +173,18 @@ jobs:
           export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
           make build-updater
 
-      - name: Resolve package version
-        id: version
-        run: |
-          set -euo pipefail
-          raw="${{ github.event.release.tag_name }}"
-          if [ -z "$raw" ]; then
-            # Manual (workflow_dispatch) run: no release tag. A dpkg version
-            # MUST start with a digit, so prefix the timestamp with 0.0.0+.
-            raw="0.0.0+ci.$(date -u +%Y%m%d.%H%M%S)"
-          fi
-          # Strip a leading v and any characters not valid in a dpkg version.
-          version="$(printf '%s' "$raw" | sed -E 's/^v//; s/[^0-9A-Za-z.+~-]//g')"
-          # Final safety net: dpkg rejects a version not beginning with a digit
-          # (e.g. a tag like "pre-1.0" becomes "pre1.0"). Prefix it.
-          if ! printf '%s' "$version" | grep -q '^[0-9]'; then
-            version="0.0.0+$version"
-          fi
-          test -n "$version"
-          echo "package_version=$version" >> "$GITHUB_OUTPUT"
-
       - name: Build Debian package
         id: deb
-        env:
-          PACKAGE_VERSION: ${{ steps.version.outputs.package_version }}
         run: |
           set -euo pipefail
           export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-          # `make deb` depends on `maybe-build-updater`; the updater was already
-          # built in the step above, so this is effectively the packaging step.
-          make deb
+          # The updater was already built in the step above. Call the packaging
+          # script directly (NOT `make deb`) so no PACKAGE_VERSION is forced in:
+          # scripts/build-deb.sh defaults PACKAGE_VERSION to `date -u
+          # +%Y.%m.%d.%H%M%S` (a UTC timestamp, which is a dpkg-valid
+          # version). MAX_BUILD_THREADS / PACKAGE_WITH_UPDATER fall back to their
+          # built-in defaults (0 / 1). The produced .deb path is globbed below.
+          ./scripts/build-deb.sh
 
           deb_file="$(find dist -maxdepth 1 -name 'codex-desktop_*.deb' -print -quit)"
           test -n "$deb_file"
