@@ -619,6 +619,7 @@ SCRIPT
     assert_contains "$pkg_root/usr/share/applications/codex-desktop.desktop" "Name=New Window"
     assert_contains "$pkg_root/usr/share/applications/codex-desktop.desktop" "Name=Check for Updates"
     assert_contains "$pkg_root/usr/share/applications/codex-desktop.desktop" "Name=Install Ready Update"
+    assert_contains "$pkg_root/usr/share/applications/codex-desktop.desktop" "Keywords=codex;openai;ai;coding;"
     assert_file_exists "$pkg_root/DEBIAN/postrm"
     assert_file_exists "$pkg_root/opt/codex-desktop/update-builder/scripts/lib/package-common.sh"
     assert_file_exists "$pkg_root/opt/codex-desktop/update-builder/scripts/lib/patch-chrome-plugin.js"
@@ -655,6 +656,7 @@ SCRIPT
     assert_file_exists "$pkg_root/opt/codex-desktop/update-builder/node-runtime/bin/node"
     assert_file_exists "$pkg_root/opt/codex-desktop/update-builder/Cargo.toml"
     assert_file_exists "$pkg_root/opt/codex-desktop/update-builder/CHANGELOG.md"
+    assert_file_exists "$pkg_root/opt/codex-desktop/update-builder/launcher/cli-launch-path.py"
     assert_file_exists "$pkg_root/opt/codex-desktop/update-builder/computer-use-linux/Cargo.toml"
     assert_file_exists "$pkg_root/opt/codex-desktop/update-builder/notification-actions-linux/Cargo.toml"
     assert_file_not_exists "$pkg_root/opt/codex-desktop/update-builder/global-dictation-linux/Cargo.toml"
@@ -667,6 +669,7 @@ SCRIPT
         >"$workspace/update-builder-patcher-help.txt"
     assert_contains "$workspace/update-builder-patcher-help.txt" "Usage: patch-linux-window-ui.js"
     assert_file_exists "$pkg_root/opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh"
+    assert_file_exists "$pkg_root/opt/codex-desktop/.codex-linux/cli-launch-path.py"
     assert_contains "$pkg_root/opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh" "is-enabled codex-update-manager.service"
     assert_not_contains "$pkg_root/opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh" "enable --now codex-update-manager.service"
     assert_file_exists "$pkg_root/opt/codex-desktop/.codex-linux/codex-desktop-entry-doctor.sh"
@@ -1049,6 +1052,7 @@ SCRIPT
     assert_file_exists "$pkg_root/DEBIAN/postinst"
     assert_file_exists "$pkg_root/DEBIAN/prerm"
     assert_file_exists "$pkg_root/opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh"
+    assert_file_exists "$pkg_root/opt/codex-desktop/.codex-linux/cli-launch-path.py"
     assert_file_exists "$pkg_root/opt/codex-desktop/.codex-linux/codex-no-updater-transition-cleanup.sh"
     assert_file_not_exists "$pkg_root/usr/bin/codex-update-manager"
     assert_file_not_exists "$pkg_root/usr/lib/systemd/user/codex-update-manager.service"
@@ -1461,6 +1465,7 @@ SCRIPT
     assert_file_exists "$capture_dir/AppDir/usr/share/icons/hicolor/256x256/apps/codex-desktop.png"
     assert_file_exists "$capture_dir/AppDir/opt/codex-desktop/start.sh"
     assert_file_exists "$capture_dir/AppDir/opt/codex-desktop/.codex-linux/codex-desktop.png"
+    assert_file_exists "$capture_dir/AppDir/opt/codex-desktop/.codex-linux/cli-launch-path.py"
     assert_file_exists "$capture_dir/AppDir/opt/codex-desktop/.codex-linux/codex-packaged-runtime.sh"
     assert_file_exists "$capture_dir/AppDir/opt/codex-desktop/resources/node-runtime/bin/node"
     assert_file_exists "$capture_dir/AppDir/opt/codex-desktop/resources/codex-cli/preserve.txt"
@@ -1471,6 +1476,7 @@ SCRIPT
     assert_file_not_exists "$capture_dir/AppDir/opt/codex-desktop/update-builder"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Exec=AppRun %u"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Icon=codex-desktop"
+    assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Keywords=codex;openai;ai;coding;"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "X-AppImage-Version=2026.03.24.120000+appimage"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "Actions=new-window;"
     assert_contains "$capture_dir/AppDir/codex-desktop.desktop" "[Desktop Action new-window]"
@@ -4923,6 +4929,7 @@ test_launcher_rejects_missing_webview_entrypoint() {
     } > "$app_dir/start.sh"
     chmod +x "$app_dir/start.sh"
     cp "$REPO_DIR/launcher/webview-server.py" "$app_dir/.codex-linux/webview-server.py"
+    cp "$REPO_DIR/launcher/cli-launch-path.py" "$app_dir/.codex-linux/cli-launch-path.py"
     ln -s "$(command -v node)" "$app_dir/resources/node-runtime/bin/node"
 
     cat > "$app_dir/electron" <<'SCRIPT'
@@ -5207,9 +5214,11 @@ test_launcher_template_sanity() {
     assert_contains "$REPO_DIR/scripts/lib/native-modules.sh" "CODEX_ELECTRON_CACHE_DIR"
     assert_contains "$REPO_DIR/scripts/lib/native-modules.sh" "--continue-at -"
     assert_file_exists "$REPO_DIR/launcher/webview-server.py"
+    assert_file_exists "$REPO_DIR/launcher/cli-launch-path.py"
     assert_contains "$REPO_DIR/launcher/webview-server.py" "Cache-Control"
     assert_contains "$REPO_DIR/launcher/webview-server.py" "If-Modified-Since"
     assert_contains "$REPO_DIR/install.sh" "webview-server.py"
+    assert_contains "$REPO_DIR/install.sh" "cli-launch-path.py"
     assert_contains "$REPO_DIR/launcher/start.sh.template" 'python3 "$SCRIPT_DIR/.codex-linux/webview-server.py" "$CODEX_LINUX_WEBVIEW_PORT" --bind 127.0.0.1'
     assert_contains "$REPO_DIR/launcher/start.sh.template" "WEBVIEW_PID_FILE"
     assert_contains "$REPO_DIR/launcher/start.sh.template" "owned_webview_server_pid"
@@ -5278,13 +5287,13 @@ multi_body = source.split("configure_multi_launch_instance() {", 1)[1].split('WE
 adopt_body = source.split("adopt_existing_webview_server() {", 1)[1].split("start_webview_server() {", 1)[0]
 ensure_body = source.split("start_webview_server() {", 1)[1].split("wait_for_webview_server", 1)[0]
 reconcile_body = source.split("reconcile_runtime_state() {", 1)[1].split("set_electron_defaults() {", 1)[0]
-orphan_body = source.split("pid_is_orphaned_runtime_process() {", 1)[1].split("detect_cross_install_conflict() {", 1)[0]
-reap_body = source.split("reap_orphaned_runtime_processes() {", 1)[1].split("reconcile_runtime_state() {", 1)[0]
 match_executable_body = source.split("pid_matches_executable() {", 1)[1].split("find_running_app_pid() {", 1)[0]
 arg0_path_body = source.split("pid_cmdline_arg0_path() {", 1)[1].split("pid_arg0_matches_path() {", 1)[0]
 arg0_match_body = source.split("pid_arg0_matches_path() {", 1)[1].split("pid_environ_lines() {", 1)[0]
 foreign_body = source.split("pid_is_foreign_codex_electron() {", 1)[1].split("discover_running_app_pid() {", 1)[0]
-summary_body = source.split("pid_summary() {", 1)[1].split("pid_is_orphaned_runtime_process() {", 1)[0]
+summary_body = source.split("pid_summary() {", 1)[1].split("detect_cross_install_conflict() {", 1)[0]
+warm_recovery_body = source.split("recover_unhealthy_running_app() {", 1)[1].split("send_warm_start_launch_action() {", 1)[0]
+terminate_body = source.split("terminate_stale_electron_with_pidfd() {", 1)[1].split("recover_unhealthy_running_app() {", 1)[0]
 if 'LAUNCHER_ARGS=()' not in source:
     raise SystemExit("launcher must keep a sanitized argv for launcher-only flags")
 if 'CODEX_LINUX_FEATURES_DIR="$SCRIPT_DIR/.codex-linux/features"' not in source:
@@ -5341,6 +5350,25 @@ if not re.search(r'if ! linux_setting_enabled "codex-linux-warm-start-enabled" 1
     raise SystemExit("detect_warm_start must not fail when warm start is disabled")
 if "preserving liveness marker for second-instance handoff" not in source:
     raise SystemExit("detect_warm_start must preserve the live app liveness marker")
+if "running_app_uses_renderer_url_override" not in warm_recovery_body:
+    raise SystemExit("warm-start recovery must preserve explicit renderer URL overrides")
+if "webview_origin_is_reachable" not in warm_recovery_body or "webview_port_is_open" not in warm_recovery_body:
+    raise SystemExit("warm-start recovery must verify the packaged origin and fail closed on an occupied port")
+if "acquire_launcher_lock" not in warm_recovery_body or "refresh_launch_state_quick" not in warm_recovery_body:
+    raise SystemExit("warm-start recovery must revalidate the stale app while holding the launcher lock")
+if "terminate_stale_electron_with_pidfd" not in warm_recovery_body:
+    raise SystemExit("warm-start recovery must terminate only an identity-verified stale Electron")
+if "os.pidfd_open" not in terminate_body or "signal.pidfd_send_signal" not in terminate_body:
+    raise SystemExit("stale Electron termination must bind signals to a pidfd")
+for identity_guard in ("expected_start_time", "expected_executable", "expected_app_id", "expected_instance_id"):
+    if identity_guard not in terminate_body:
+        raise SystemExit(f"pidfd termination is missing identity guard: {identity_guard}")
+if 'running_app_is_active || return 0' not in warm_recovery_body or '[ "$WARM_START" -eq 1 ]' in warm_recovery_body:
+    raise SystemExit("unhealthy origin recovery must also cover Electron second-instance handoff")
+if "renderer_url_override_is_active" in warm_recovery_body:
+    raise SystemExit("a new-launch renderer override must not preserve a stale packaged-origin Electron")
+if not re.search(r'trap cleanup_launcher EXIT.*?recover_unhealthy_running_app.*?prepare_launch_state_under_lock.*?send_warm_start_launch_action', source, re.S):
+    raise SystemExit("launcher must recover an unhealthy packaged origin before warm-start IPC")
 if launch_body.count("unset ELECTRON_RUN_AS_NODE") != 2:
     raise SystemExit("launch_electron must clear ELECTRON_RUN_AS_NODE before both Electron launch paths")
 if 'pid_matches_executable "$RUNNING_APP_PID" "$SCRIPT_DIR/electron"' not in launch_body:
@@ -5373,13 +5401,12 @@ warm_log_pos = launch_body.index(warm_log)
 warm_unset_pos = launch_body.index("unset ELECTRON_RUN_AS_NODE", warm_log_pos)
 warm_launch_pos = launch_body.index(electron_launch, warm_unset_pos)
 normal_log_pos = launch_body.index(normal_log)
-normal_close_pos = launch_body.index("close_launcher_lock_fd_for_child", normal_log_pos)
 normal_unset_pos = launch_body.index("unset ELECTRON_RUN_AS_NODE", normal_log_pos)
 normal_launch_pos = launch_body.index(electron_exec, normal_unset_pos)
 if electron_launch + " &" in launch_body:
-    raise SystemExit("cold Electron launch must close launcher fd in a child before exec, not background the binary directly")
-if not (warm_log_pos < warm_unset_pos < warm_launch_pos < normal_log_pos < normal_close_pos < normal_unset_pos < normal_launch_pos):
-    raise SystemExit("launch_electron must close the launcher fd and clear ELECTRON_RUN_AS_NODE immediately before cold Electron exec")
+    raise SystemExit("cold Electron launch must exec from a child, not background the binary directly")
+if not (warm_log_pos < warm_unset_pos < warm_launch_pos < normal_log_pos < normal_unset_pos < normal_launch_pos):
+    raise SystemExit("launch_electron must clear ELECTRON_RUN_AS_NODE immediately before cold Electron exec")
 if "using_second_instance_handoff" not in source or "needs_cold_start" not in source:
     raise SystemExit("launcher must have an explicit second-instance handoff mode")
 if "second_instance_handoff_ready" not in runtime_body:
@@ -5430,8 +5457,8 @@ if "version unknown; set CODEX_CLI_PATH=/path/to/codex" not in source:
     raise SystemExit("CLI lookup diagnostics must explain explicit CODEX_CLI_PATH pinning")
 if 'local self_pid="${BASHPID:-$$}"' not in source or 'pid_parent_matches "$probe_pid" "$self_pid"' not in source:
     raise SystemExit("CLI version probe watchdog must guard kills against PID reuse")
-if source.count('{ exec 9>&-; } 2>/dev/null || true') < 3:
-    raise SystemExit("CLI version probe children and Electron child must close launcher lock fd 9")
+if source.count('{ exec 9>&-; } 2>/dev/null || true') < 2:
+    raise SystemExit("CLI version probe children must close their inherited watchdog fd 9")
 for unexpected in ("find_codex_cli_entry", "codex_cli_version_compare", "codex_cli_version_gt", "sort -V"):
     if unexpected in source:
         raise SystemExit(f"launcher must not rank discovered CLI candidates with {unexpected}")
@@ -5512,9 +5539,8 @@ overlap_start = cold_flow.index("\n    start_webview_server\n")
 overlap_sync = cold_flow.index('log_phase "cold_start_cache_sync_start"')
 overlap_last_sync = cold_flow.index("sync_extra_bundled_plugin_cache")
 overlap_await = cold_flow.index("\n    await_webview_server_ready\n")
-overlap_lock = cold_flow.index("acquire_launcher_lock")
-if not (overlap_start < overlap_sync < overlap_last_sync < overlap_await < overlap_lock):
-    raise SystemExit("webview readiness wait must overlap the plugin cache syncs and finish before the launcher lock")
+if not (overlap_start < overlap_sync < overlap_last_sync < overlap_await):
+    raise SystemExit("webview readiness wait must overlap the plugin cache syncs and finish before Electron")
 await_body = source.split("await_webview_server_ready() {", 1)[1].split("clear_stale_pid_file() {", 1)[0]
 if "wait_for_webview_server" not in await_body or "verify_webview_origin" not in await_body:
     raise SystemExit("await_webview_server_ready must keep readiness and origin verification before Electron")
@@ -5540,31 +5566,33 @@ if not re.search(r'log_phase "initial_launch_state_refresh_start"\s+refresh_laun
     raise SystemExit("launcher must do an initial runtime-state refresh before warm-start IPC")
 if "trap 'exit 130' INT" not in source or "trap 'exit 143' TERM" not in source or "trap 'exit 129' HUP" not in source:
     raise SystemExit("launcher must cleanup through EXIT after INT/TERM/HUP")
-if not re.search(r'if needs_cold_start; then\s+acquire_launcher_lock\s+log_phase "launcher_lock_ready"\s+refresh_launch_state_quick\s+log_phase "launch_state_refreshed_under_lock"', source):
-    raise SystemExit("launcher must do only a quick state refresh under the launcher lock")
+prepare_body = source.split("prepare_launch_state_under_lock() {", 1)[1].split("launch_electron() {", 1)[0]
+if "acquire_launcher_lock" not in prepare_body or "refresh_launch_state_quick" not in prepare_body:
+    raise SystemExit("launcher must refresh launch state under the launcher lock before cold-start work")
+if not re.search(r'prepare_launch_state_under_lock.*?elif needs_cold_start; then.*?start_webview_server', source, re.S):
+    raise SystemExit("launcher must acquire the cold-start lock before spawning the packaged webview")
+if "No new app process was started" not in prepare_body:
+    raise SystemExit("launcher lock timeout must fail closed instead of continuing a duplicate cold start")
 if 'CODEX_LAUNCHER_LOCK_WAIT_SECONDS:-5' not in source:
     raise SystemExit("launcher lock wait must default to 5 seconds so duplicate launches do not look hung")
-if 'flock -n 9' not in source or 'flock -w "$wait_seconds" 9' not in source:
-    raise SystemExit("launcher lock must first probe and then use a bounded wait")
-if "Another $CODEX_LINUX_APP_DISPLAY_NAME launcher is holding" not in source:
-    raise SystemExit("launcher lock waits must emit visible diagnostics")
+if "fcntl.flock" not in source or "PR_SET_PDEATHSIG" not in source:
+    raise SystemExit("launcher lock must be held by a parent-death-bound helper instead of an inherited fd")
+if 'wait_seconds * 20 + 20' not in source:
+    raise SystemExit("launcher lock helper status wait must remain bounded")
 if "detect_cross_install_conflict" not in source or "Both use app id" not in source:
     raise SystemExit("launcher must still support same-identity cross-install diagnostics")
-if "reap_orphaned_runtime_processes" in reconcile_body:
-    raise SystemExit("reconcile_runtime_state must not reap orphaned processes on the normal startup path")
-if "LAUNCHER_LOCK_TIMED_OUT" not in source or "reap_orphaned_runtime_processes" not in source:
-    raise SystemExit("orphan cleanup should remain available only for exceptional lock-timeout recovery")
-if (
-    "pid_is_orphaned_runtime_process" not in source
-    or '"$SCRIPT_DIR/chrome_crashpad_handler"' not in source
-    or '"$SCRIPT_DIR/resources/node-runtime/bin/node"' not in source
-    or '"$SCRIPT_DIR/resources/node_repl"' not in source
-):
-    raise SystemExit("orphan cleanup must cover same-app Electron helpers, crashpad, and managed Node children")
-if "launcher_lock_holder_pids" in reap_body:
-    raise SystemExit("orphan cleanup must not require fuser-based lock holder discovery")
-if "LAUNCHER_LOCK_FD_OPEN=1" not in source or "exec 9>&-" not in source:
-    raise SystemExit("launcher lock fd must be tracked and closed after the critical section")
+if "LAUNCHER_LOCK_TIMED_OUT" not in source:
+    raise SystemExit("launcher must track bounded lock timeout failures")
+if "reap_orphaned_runtime_processes" in source or "pid_is_orphaned_runtime_process" in source:
+    raise SystemExit("lock timeout must not kill processes belonging to the active serialized cold start")
+if "LAUNCHER_LOCK_HELD=1" not in source or "stop_launcher_lock_helper" not in source:
+    raise SystemExit("launcher must explicitly release and reap its dedicated lock helper")
+if "signal.SIGUSR1, 500" not in source or "signal.SIGTERM, 500" not in source or "signal.SIGKILL, 500" not in source:
+    raise SystemExit("launcher lock helper shutdown must use bounded identity-bound pidfd escalation")
+if "launcher_lock_helper_is_active" not in source or "require_active_launcher_lock" not in launch_body:
+    raise SystemExit("launcher must fail closed if the identity-bound lock helper exits before Electron")
+if "LAUNCHER_LOCK_CONTROL_PATH" in source or "mkfifo" in source:
+    raise SystemExit("launcher lock release must not expose an inherited FIFO capability")
 if "CODEX_ELECTRON_DISABLE_GPU_COMPOSITING=1" not in launch_body:
     raise SystemExit("launcher must log the GPU compositing workaround hint for side-panel flicker")
 if launch_body.count("release_launcher_lock") != 2:
@@ -6131,6 +6159,7 @@ EOF
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "BAMF_DESKTOP_FILE_HINT"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "/usr/bin/codex-desktop %u"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "MimeType=x-scheme-handler/codex;x-scheme-handler/codex-browser-sidebar;"
+    assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "Keywords=codex;openai;ai;coding;"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "StartupWMClass=codex-desktop"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "X-GNOME-WMClass=codex-desktop"
     assert_contains "$REPO_DIR/packaging/linux/codex-desktop.desktop" "Actions=new-window;CheckForUpdates;InstallReadyUpdate;"
@@ -6141,6 +6170,7 @@ EOF
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "BAMF_DESKTOP_FILE_HINT=@HOME@/.local/share/applications/codex-desktop.desktop"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "@HOME@/.local/bin/codex-desktop %U"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "MimeType=x-scheme-handler/codex;x-scheme-handler/codex-browser-sidebar;"
+    assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "Keywords=codex;openai;ai;coding;"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "Actions=new-window;"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/share/applications/codex-desktop.desktop" "CODEX_MULTI_LAUNCH=1 @HOME@/.local/bin/codex-desktop --new-instance"
     assert_contains "$REPO_DIR/contrib/user-local-install/files/.local/bin/codex-desktop" "CODEX_USER_LOCAL_OZONE_PLATFORM"
@@ -6367,14 +6397,29 @@ esac
 preflight_match = re.search(r"^run_cli_preflight\(\) \{[\s\S]*?^\}\n", source, re.M)
 if preflight_match is None:
     raise SystemExit("missing run_cli_preflight")
-routing_start = source.index('if needs_cold_start; then\n    cli_repair_required=0')
+trust_match = re.search(r"^verify_cli_launch_path\(\) \{[\s\S]*?^\}\n", source, re.M)
+if trust_match is None:
+    raise SystemExit("missing verify_cli_launch_path")
+routing_start = source.index('if [ -n "$CODEX_CLI_PATH" ]; then\n    if ! verify_cli_launch_path')
 routing_end = source.index("\nexport_packaged_runtime_env", routing_start)
+final_version_log = source.index("\nlog_codex_cli_path\n", routing_end)
+electron_launch = source.index("\nlaunch_electron ", final_version_log)
+if not routing_start < routing_end < final_version_log < electron_launch:
+    raise SystemExit("CLI trust gate must precede the final version log and Electron launch")
 pathlib.Path(sys.argv[3]).write_text(
     "#!/usr/bin/env bash\n"
     "set -Eeuo pipefail\n\n"
     + r'''
 CODEX_CLI_PATH=/tmp/codex
 has_update_manager() { [ "${UPDATE_MANAGER_AVAILABLE:-0}" = "1" ]; }
+run_cli_launch_path_helper() {
+    printf 'trust=called\n' >> "$ROUTING_LOG"
+    if [ "${TRUST_RESULT:-success}" = "success" ]; then
+        printf '%s\n' /tmp/verified-codex
+        return 0
+    fi
+    return 1
+}
 run_update_manager() {
     if [ "${UPDATE_MANAGER_RESULT:-failure}" = "success" ]; then
         printf '%s\n' /tmp/repaired-codex
@@ -6384,14 +6429,20 @@ run_update_manager() {
 }
 notify_error() { printf 'notify=%s\n' "$1" >> "$ROUTING_LOG"; }
 log_phase() { printf 'phase=%s\n' "$1" >> "$ROUTING_LOG"; }
-needs_cold_start() { return 0; }
-codex_cli_missing_optional_dependency() { [ "${BROKEN_CLI:-0}" = "1" ]; }
+needs_cold_start() { [ "${COLD_START:-1}" = "1" ]; }
+codex_cli_missing_optional_dependency() {
+    printf 'probe=missing-optional\n' >> "$ROUTING_LOG"
+    [ "${BROKEN_CLI:-0}" = "1" ]
+}
 run_cli_preflight_background() { printf 'background=1\n' >> "$ROUTING_LOG"; }
+log_codex_cli_path() { printf 'version=final\n' >> "$ROUTING_LOG"; }
+launch_electron() { printf 'electron=launch\n' >> "$ROUTING_LOG"; }
 '''
     + preflight_match.group(0)
+    + trust_match.group(0)
     + "\n"
     + source[routing_start:routing_end]
-    + "\n",
+    + "\nlog_codex_cli_path\nlaunch_electron\n",
     encoding="utf-8",
 )
 PY
@@ -6542,6 +6593,28 @@ PY
 
     local routing_log="$workspace/preflight-routing.log"
     if env -i PATH="$HOST_TOOL_PATH" ROUTING_LOG="$routing_log" \
+        UPDATE_MANAGER_AVAILABLE=0 TRUST_RESULT=failure BROKEN_CLI=1 \
+        "$routing_probe"; then
+        fail "standalone trust failure must abort launcher startup"
+    fi
+    grep -q '^notify=The selected Codex CLI failed its execution-free trust check' "$routing_log" || \
+        fail "standalone trust failure must show safe recovery guidance"
+    if grep -qE '^(probe=|background=|version=|electron=)' "$routing_log"; then
+        fail "standalone trust failure must block every CLI probe, final version log, and Electron startup"
+    fi
+
+    : > "$routing_log"
+    if env -i PATH="$HOST_TOOL_PATH" ROUTING_LOG="$routing_log" \
+        COLD_START=0 UPDATE_MANAGER_AVAILABLE=0 TRUST_RESULT=failure \
+        "$routing_probe"; then
+        fail "standalone trust failure must also abort second-instance handoff"
+    fi
+    if grep -qE '^(probe=|background=|version=|electron=)' "$routing_log"; then
+        fail "second-instance trust failure must not reach any CLI probe or Electron startup"
+    fi
+
+    : > "$routing_log"
+    if env -i PATH="$HOST_TOOL_PATH" ROUTING_LOG="$routing_log" \
         CODEX_SYNC_CLI_PREFLIGHT=1 BROKEN_CLI=1 UPDATE_MANAGER_AVAILABLE=0 \
         "$routing_probe"; then
         fail "sync preflight must abort when a known-broken CLI cannot be repaired"
@@ -6576,6 +6649,102 @@ PY
         fail "healthy default preflight must stay asynchronous"
     grep -qx 'phase=cli_preflight_backgrounded' "$routing_log" || \
         fail "healthy default preflight must record the background path"
+
+    : > "$routing_log"
+    env -i PATH="$HOST_TOOL_PATH" ROUTING_LOG="$routing_log" \
+        BROKEN_CLI=0 UPDATE_MANAGER_AVAILABLE=1 TRUST_RESULT=success \
+        "$routing_probe"
+    grep -qx 'trust=called' "$routing_log" || \
+        fail "native launcher must synchronously validate the selected CLI"
+    grep -qx 'phase=cli_launch_path_verified' "$routing_log" || \
+        fail "successful trust validation must be recorded before normal preflight"
+    grep -qx 'probe=missing-optional' "$routing_log" || \
+        fail "healthy CLI must be probed only after trust validation succeeds"
+    grep -qx 'version=final' "$routing_log" || \
+        fail "successful trust validation must allow the final CLI version log"
+    grep -qx 'electron=launch' "$routing_log" || \
+        fail "successful trust validation must allow Electron startup"
+    [ "$(sed -n '/^trust=called$/=' "$routing_log")" -lt "$(sed -n '/^probe=missing-optional$/=' "$routing_log")" ] || \
+        fail "trust validation must precede every CLI version probe"
+
+    local trust_workspace="$workspace/standalone-trust"
+    local codex_home="$trust_workspace/home/.codex"
+    local release="$codex_home/packages/standalone/releases/0.42.0-test-target"
+    local visible_cli="$trust_workspace/home/.local/bin/codex"
+    local stable_path
+    mkdir -p "$release/bin" "$(dirname "$visible_cli")"
+    chmod go-w "$workspace"
+    find "$trust_workspace" -type d -exec chmod go-w {} +
+    cat > "$release/bin/codex" <<'SCRIPT'
+#!/usr/bin/env bash
+printf '%s\n' 'codex-cli 0.42.0'
+SCRIPT
+    chmod 0755 "$release/bin/codex"
+    ln -s "$release" "$codex_home/packages/standalone/current"
+    ln -s "$codex_home/packages/standalone/current/bin/codex" "$visible_cli"
+
+    stable_path="$(HOME="$trust_workspace/home" python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli")"
+    [ "$stable_path" = "$(realpath "$release/bin/codex")" ] || \
+        fail "launcher trust helper must return the canonical standalone release target"
+
+    local replacement_marker="$trust_workspace/replacement-executed"
+    local replacement_cli="$trust_workspace/replacement-codex"
+    cat > "$replacement_cli" <<SCRIPT
+#!/usr/bin/env bash
+: > "$replacement_marker"
+printf '%s\n' 'codex-cli 9.9.9'
+SCRIPT
+    chmod 0755 "$replacement_cli"
+    rm "$visible_cli"
+    ln -s "$replacement_cli" "$visible_cli"
+    "$stable_path" --version >/dev/null
+    [ ! -e "$replacement_marker" ] || \
+        fail "replacing the visible CLI symlink must not redirect the verified launch target"
+
+    chmod 0775 "$(dirname "$visible_cli")"
+    chmod 0755 "$replacement_cli"
+    mv "$codex_home/packages/standalone" "$codex_home/packages/standalone-rejected"
+    if HOME="$trust_workspace/home" CODEX_HOME="$codex_home" \
+        python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli" >/dev/null 2>&1; then
+        fail "launcher trust helper must reject an unsafe visible replacement before classification"
+    fi
+    [ ! -e "$replacement_marker" ] || \
+        fail "launcher trust helper must not execute an unsafe pre-validation replacement"
+    mv "$codex_home/packages/standalone-rejected" "$codex_home/packages/standalone"
+
+    python3 - "$REPO_DIR/launcher/cli-launch-path.py" <<'PY'
+import importlib.util
+import os
+import pathlib
+import sys
+
+spec = importlib.util.spec_from_file_location("cli_launch_path", pathlib.Path(sys.argv[1]))
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+euid = os.geteuid()
+untrusted_uid = 2 if euid == 1 else 1
+assert module.trusted_owner(euid)
+assert module.trusted_owner(0)
+assert not module.trusted_owner(untrusted_uid)
+PY
+
+    rm "$visible_cli"
+    ln -s "$codex_home/packages/standalone/current/bin/codex" "$visible_cli"
+    chmod 0775 "$release/bin/codex"
+    if HOME="$trust_workspace/home" python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli" >/dev/null 2>&1; then
+        fail "launcher trust helper must reject a group-writable standalone binary"
+    fi
+    chmod 0755 "$release/bin/codex"
+
+    local external_root="$trust_workspace/external"
+    mkdir -p "$external_root/bin"
+    cp "$release/bin/codex" "$external_root/bin/codex"
+    rm "$codex_home/packages/standalone/current"
+    ln -s "$external_root" "$codex_home/packages/standalone/current"
+    if python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli" >/dev/null 2>&1; then
+        fail "launcher trust helper must reject an external standalone current symlink"
+    fi
 }
 
 test_webview_server_cache_policy() {
@@ -6725,6 +6894,7 @@ test_side_by_side_launcher_identity() {
 
     assert_file_exists "$app_dir/start.sh"
     assert_file_exists "$app_dir/.codex-linux/webview-server.py"
+    assert_file_exists "$app_dir/.codex-linux/cli-launch-path.py"
     assert_file_exists "$app_dir/.codex-linux/codex-cua-lab.png"
     cmp -s "$linux_icon_source" "$app_dir/.codex-linux/codex-cua-lab.png" \
         || fail "Expected side-by-side launcher icon to use CODEX_LINUX_ICON_SOURCE"
@@ -9874,6 +10044,13 @@ EOF
     )
 }
 
+test_launcher_warm_start_recovery() {
+    info "Checking warm-start recovery after launcher SIGKILL"
+    bash "$REPO_DIR/tests/launcher_warm_start_recovery.sh"
+    CODEX_TEST_DISABLE_WARM_START=1 bash "$REPO_DIR/tests/launcher_warm_start_recovery.sh"
+    CODEX_TEST_KILL_DURING_PRELAUNCH=1 bash "$REPO_DIR/tests/launcher_warm_start_recovery.sh"
+}
+
 test_notification_actions_bridge_accepts_prebuilt_binary() {
     local workspace="$TMP_DIR/notification-actions-bridge"
     local source_binary="$workspace/prebuilt/codex-notification-actions-linux"
@@ -10018,6 +10195,7 @@ main() {
     test_launcher_rejects_missing_webview_entrypoint
     test_launcher_marketplace_metadata_atomic_staging
     test_launcher_template_sanity
+    test_launcher_warm_start_recovery
     test_launcher_cli_resolution_policy
     test_webview_server_cache_policy
     test_process_detection_helper_cmdline_shapes
