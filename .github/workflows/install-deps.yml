@@ -1,20 +1,7 @@
 name: Install Dependencies
 
 on:
-  pull_request:
-    paths:
-      - install.sh
-      - scripts/install-deps.sh
-      - packaging/linux/control
-      - .github/workflows/install-deps.yml
-  push:
-    branches:
-      - main
-    paths:
-      - install.sh
-      - scripts/install-deps.sh
-      - packaging/linux/control
-      - .github/workflows/install-deps.yml
+  workflow_dispatch:
 
 jobs:
   apt-node-bootstrap:

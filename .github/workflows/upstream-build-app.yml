@@ -1,44 +1,6 @@
 name: Upstream Build App
 
 on:
-  schedule:
-    - cron: '30 * * * *'
-  pull_request:
-    paths:
-      - install.sh
-      - Makefile
-      - scripts/patch-linux-window-ui.js
-      - scripts/patch-linux-window-ui.test.js
-      - scripts/patches/**
-      - scripts/ci/validate-patch-report.js
-      - scripts/ci/upstream-dmg-*.js
-      - scripts/validate-upstream-dmg.js
-      - scripts/lib/candidate-install.sh
-      - scripts/lib/patch-validation.js
-      - scripts/lib/upstream-dmg-acceptance.js
-      - scripts/lib/upstream-dmg-release-profile.js
-      - scripts/lib/linux-features.js
-      - linux-features/**
-      - .github/workflows/upstream-build-app.yml
-  push:
-    branches:
-      - main
-    paths:
-      - install.sh
-      - Makefile
-      - scripts/patch-linux-window-ui.js
-      - scripts/patch-linux-window-ui.test.js
-      - scripts/patches/**
-      - scripts/ci/validate-patch-report.js
-      - scripts/ci/upstream-dmg-*.js
-      - scripts/validate-upstream-dmg.js
-      - scripts/lib/candidate-install.sh
-      - scripts/lib/patch-validation.js
-      - scripts/lib/upstream-dmg-acceptance.js
-      - scripts/lib/upstream-dmg-release-profile.js
-      - scripts/lib/linux-features.js
-      - linux-features/**
-      - .github/workflows/upstream-build-app.yml
   workflow_dispatch:
 
 permissions:
