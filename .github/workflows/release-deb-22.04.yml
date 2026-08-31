@@ -70,17 +70,20 @@ jobs:
           # which installs GCC 10 from the toolchain PPA). Verify it explicitly.
           gcc --version | head -1
 
-          # The bare container has no Rust toolchain. install-deps.sh only
-          # prints a hint when rustup is missing instead of failing, so the
-          # failure would otherwise surface as `cargo: command not found` in
-          # `make build-updater`. Install it here; PATH is exported below.
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- -y --profile minimal --default-toolchain stable
-          . "$HOME/.cargo/env"
-          cargo --version
-
       - name: Install build dependencies
         run: bash scripts/install-deps.sh
+
+      - name: Install Rust toolchain
+        # The bare ubuntu container has no Rust. install-deps.sh installs
+        # `curl` but not `rustup`, and its install_rust() prints a hint and
+        # returns 0 when rustup is absent — so that step succeeds without
+        # providing cargo, and the failure only surfaces later as
+        # `cargo: command not found` in `make build-updater`. Keep this step
+        # after install-deps so curl is already present.
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain stable
 
       - name: Expose local tooling on PATH
         run: |
