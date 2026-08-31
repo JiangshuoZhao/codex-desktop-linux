@@ -28,25 +28,6 @@ on:
         description: Expected signed arm64 SHA-256
         required: true
         type: string
-  pull_request:
-  push:
-    branches: [main]
-    paths:
-      - install.sh
-      - Makefile
-      - assets/openai-codex-linux-repository-key.gpg.base64
-      - launcher/**
-      - scripts/build-*.sh
-      - scripts/lib/package-common.sh
-      - scripts/lib/upstream-linux-package.*
-      - scripts/automation/upstream-linux-package-watchdog/**
-      - scripts/patches/**
-      - linux-features/**
-      - packaging/**
-      - updater/**
-      - flake.nix
-      - nix/**
-      - .github/workflows/upstream-build-app.yml
 
 permissions:
   contents: read

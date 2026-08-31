@@ -7,10 +7,7 @@ name: computer-use sync reminder
 # not silently drift apart.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'computer-use-linux/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
