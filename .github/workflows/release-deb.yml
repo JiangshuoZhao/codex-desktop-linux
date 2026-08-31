@@ -96,6 +96,15 @@ jobs:
           echo 'CXX=g++-11' >> "$GITHUB_ENV"
           gcc-11 --version | head -1
 
+          # The bare container has no Rust toolchain. install-deps.sh only
+          # prints a hint when rustup is missing instead of failing, so the
+          # failure would otherwise surface as `cargo: command not found` in
+          # `make build-updater`. Install it here; PATH is exported below.
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain stable
+          . "$HOME/.cargo/env"
+          cargo --version
+
       - name: Install build dependencies
         run: bash scripts/install-deps.sh
 
